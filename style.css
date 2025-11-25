@@ -1,0 +1,31 @@
+:root{--gap:18px; --accent:#0078d7;}
+body{
+  font-family:"Segoe UI",system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
+  background:#f4f6fa; margin:0; padding:36px; color:#222;
+  display:flex; justify-content:center;
+}
+.wrap{width:100%; max-width:1200px;}
+header{margin-bottom:18px; display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap;}
+h1{margin:0; font-size:20px; color:var(--accent);}
+.group-row{display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap;}
+input[type="text"], input[type="number"]{
+  padding:10px; border-radius:8px; border:1px solid #ccc; font-size:14px;
+}
+.btn{padding:10px 12px; border-radius:8px; border:none; cursor:pointer; font-weight:600;}
+.btn-add{background:var(--accent); color:white;}
+.btn-run{background:#28a745; color:white;}
+.results{margin-top:24px; display:grid; gap:var(--gap); align-items:start;}
+.team-card{
+  background:#fff; color:#111; border-radius:12px;
+  box-shadow:0 6px 18px rgba(0,0,0,0.07);
+  padding:14px; display:flex; flex-direction:column; gap:10px;
+  min-height:160px; user-select:none;
+  transition: transform .12s ease, box-shadow .12s ease;
+  word-break: break-word;
+}
+.team-title{font-weight:700; font-size:16px; border-bottom:2px solid var(--accent); padding-bottom:6px;}
+.members{flex:1; font-size:14px; overflow:auto;}
+.members div{margin:4px 0; cursor:pointer;}
+.dragging{opacity:0.5; border:2px dashed #0078d7;}
+.members div[contenteditable="true"]{background:#f0f0f0; padding:2px 4px; border-radius:4px;}
+button:focus, input:focus{outline:none;}
