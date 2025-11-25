@@ -103,27 +103,39 @@ function createTeams(){
       }
     }
 
-    /* -----------------------------------------------------
-       ★ splitCount が確定したので実際に分割
-    ----------------------------------------------------- */
-    if(splitCount === 1){
-      divided.push({name:g.name, base:g.name, size:g.size, isSplit:false});
-    } else {
-      const baseSize = Math.floor(g.size / splitCount);
-      let remainder = g.size - baseSize * splitCount;
-      for(let i=0;i<splitCount;i++){
-        const part = baseSize + (remainder > 0 ? 1 : 0);
-        if(remainder > 0) remainder--;
-
-        divided.push({
-          name: g.name + String.fromCharCode(65+i),
-          base: g.name,
-          size: part,
-          isSplit: true
-        });
-      }
-    }
+   // 分割数が確定するまで調整：必ず2人以上にする
+while(Math.floor(g.size / splitCount) < 2){
+  splitCount--;
+  if(splitCount <= 1){
+    splitCount = 1;
+    break;
   }
+}
+
+// 分割実行
+if(splitCount === 1){
+  divided.push({name:g.name, base:g.name, size:g.size, isSplit:false});
+} else {
+  let baseSize = Math.floor(g.size / splitCount);
+  let remainder = g.size - baseSize * splitCount;
+
+  for(let i=0; i<splitCount; i++){
+    let part = baseSize + (remainder > 0 ? 1 : 0);
+    if(remainder > 0) remainder--;
+
+    // ここでも念のため1人チームが出ないように調整
+    if(part < 2){
+      part = 2;
+    }
+
+    divided.push({
+      name: g.name + String.fromCharCode(65+i),
+      base: g.name,
+      size: part,
+      isSplit: true
+    });
+  }
+} 
 
   /* --------------------------
      チーム構築
