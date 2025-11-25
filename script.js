@@ -41,21 +41,20 @@ function clearInputs(){
   document.getElementById('results').innerHTML='';
 }
 
-/* ---------------------------------------------------------
-   チーム分けロジック（3人以下は絶対に分割しない）
----------------------------------------------------------- */
+/* ============================================
+   チーム分けロジック
+============================================ */
 function createTeams(){
-  const teamCount=Math.max(1,parseInt(document.getElementById('teamCount').value)||1);
-  const colsCount=Math.max(1,parseInt(document.getElementById('columnsCount').value)||3);
-  const rows=document.querySelectorAll('[id^="group-row-"]');
+  const teamCount = Math.max(1, parseInt(document.getElementById('teamCount').value)||1);
+  const colsCount = Math.max(1, parseInt(document.getElementById('columnsCount').value)||3);
+  const rows = document.querySelectorAll('[id^="group-row-"]');
 
-  const groups=[];
+  const groups = [];
   for(const row of rows){
     const id=row.id.split('-').pop();
     const nameEl=document.getElementById(`name-${id}`);
     const sizeEl=document.getElementById(`size-${id}`);
     if(!nameEl||!sizeEl) continue;
-
     const name=(nameEl.value||'').trim()||`グループ${id}`;
     const size=Math.max(1,parseInt(sizeEl.value)||1);
     groups.push({name,size});
@@ -69,19 +68,23 @@ function createTeams(){
   const divided=[];
   for(const g of groups){
 
-    /* ★★★ ここが追加：「3人以下は絶対分割しない」 ★★★ */
+    /* ------------------------------
+       ★ 3人以下は絶対に分割しない
+    ------------------------------ */
     if(g.size <= 3){
-      divided.push({name:g.name, base:g.name, size:g.size});
+      divided.push({name:g.name, base:g.name, size:g.size, isSplit:false});
       continue;
     }
 
+    // ★ ここで “分割した事実” を保存するため isSplit:true を付ける
+
     if(g.size <= averageB/4){
-      divided.push({name:g.name, base:g.name, size:g.size});
+      divided.push({name:g.name, base:g.name, size:g.size, isSplit:false});
 
     } else if(g.size <= averageB){
       const half=Math.floor(g.size/2);
-      divided.push({name:g.name+'A', base:g.name, size:half});
-      divided.push({name:g.name+'B', base:g.name, size:g.size-half});
+      divided.push({name:g.name + "A", base:g.name, size:half, isSplit:true});
+      divided.push({name:g.name + "B", base:g.name, size:g.size-half, isSplit:true});
 
     } else {
       const base=Math.floor(g.size/4);
@@ -89,36 +92,59 @@ function createTeams(){
       for(let i=0;i<4;i++){
         const part=base+(remainder>0?1:0);
         remainder=Math.max(0,remainder-1);
-        if(part>0)
-          divided.push({name:g.name+String.fromCharCode(65+i), base:g.name, size:part});
+        if(part>0){
+          divided.push({
+            name:g.name + String.fromCharCode(65+i),
+            base:g.name,
+            size:part,
+            isSplit:true
+          });
+        }
       }
     }
   }
 
-  let teams=Array.from({length:teamCount},(_,i)=>({
-    id:i,name:`チーム${i+1}`,members:[],total:0
+  /* --------------------------
+     チーム構築
+  --------------------------- */
+  let teams=Array.from({length:teamCount}, (_,i)=>({
+    id:i,
+    name:`チーム${i+1}`,
+    members:[],
+    total:0
   }));
 
-  divided.sort((a,b)=>b.size-a.size);
+  // 大きい順で割り当て
+  divided.sort((a,b)=>b.size-b.size);
+
   for(const piece of divided){
     teams.sort((a,b)=>a.total-b.total);
     teams[0].members.push(piece);
-    teams[0].total+=piece.size;
+    teams[0].total += piece.size;
   }
 
-  // 同じベース名の統合
+  /* ----------------------------------------
+     ★ 同じ base のものを「統合するが」
+       → ここで再分割しないようにする
+  ---------------------------------------- */
   for(const t of teams){
-    const merged={};
-    for(const m of t.members)
-      merged[m.base]=(merged[m.base]||0)+m.size;
+    const merged = {};
+    for(const m of t.members){
+      if(!merged[m.base]){
+        merged[m.base] = {name:m.base, size:0, wasSplit:m.isSplit};
+      }
+      merged[m.base].size += m.size;
+    }
 
-    t.members=Object.entries(merged).map(([base,size])=>({name:base,size}));
-    t.total=t.members.reduce((s,m)=>s+m.size,0);
+    // 統合された後も “分割済み” は保持
+    t.members = Object.values(merged);
+    t.total = t.members.reduce((s,m)=>s+m.size,0);
   }
 
-  teamsGlobal=teams;
+  teamsGlobal = teams;
   renderTeams(colsCount);
 }
+
 
 /* ---------------------------------------------------------
    結果表示・ドラッグ移動・編集
