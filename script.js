@@ -42,7 +42,7 @@ function clearInputs(){
 }
 
 /* ============================================
-   チーム分けロジック
+   チーム分けロジック（1人チーム禁止版）
 ============================================ */
 function createTeams(){
   const teamCount = Math.max(1, parseInt(document.getElementById('teamCount').value)||1);
@@ -76,30 +76,51 @@ function createTeams(){
       continue;
     }
 
-    // ★ ここで “分割した事実” を保存するため isSplit:true を付ける
+    /* ------------------------------------
+       ★ 分割数 splitCount を決める部分
+    ------------------------------------ */
+    let splitCount = 1;
 
     if(g.size <= averageB/4){
-      divided.push({name:g.name, base:g.name, size:g.size, isSplit:false});
+      splitCount = 1;
 
     } else if(g.size <= averageB){
-      const half=Math.floor(g.size/2);
-      divided.push({name:g.name + "A", base:g.name, size:half, isSplit:true});
-      divided.push({name:g.name + "B", base:g.name, size:g.size-half, isSplit:true});
+      splitCount = 2;
 
     } else {
-      const base=Math.floor(g.size/4);
-      let remainder=g.size-base*4;
-      for(let i=0;i<4;i++){
-        const part=base+(remainder>0?1:0);
-        remainder=Math.max(0,remainder-1);
-        if(part>0){
-          divided.push({
-            name:g.name + String.fromCharCode(65+i),
-            base:g.name,
-            size:part,
-            isSplit:true
-          });
-        }
+      splitCount = 4;
+    }
+
+    /* -----------------------------------------------------
+       ★ ここが今回追加する最重要ポイント！
+          分割すると 1人チームが出る場合 → 分割数を減らす
+    ----------------------------------------------------- */
+    while (Math.floor(g.size / splitCount) < 2) {
+      splitCount--;
+      if(splitCount <= 1){
+        splitCount = 1;
+        break;
+      }
+    }
+
+    /* -----------------------------------------------------
+       ★ splitCount が確定したので実際に分割
+    ----------------------------------------------------- */
+    if(splitCount === 1){
+      divided.push({name:g.name, base:g.name, size:g.size, isSplit:false});
+    } else {
+      const baseSize = Math.floor(g.size / splitCount);
+      let remainder = g.size - baseSize * splitCount;
+      for(let i=0;i<splitCount;i++){
+        const part = baseSize + (remainder > 0 ? 1 : 0);
+        if(remainder > 0) remainder--;
+
+        divided.push({
+          name: g.name + String.fromCharCode(65+i),
+          base: g.name,
+          size: part,
+          isSplit: true
+        });
       }
     }
   }
@@ -114,7 +135,6 @@ function createTeams(){
     total:0
   }));
 
-  // 大きい順で割り当て
   divided.sort((a,b)=>b.size-b.size);
 
   for(const piece of divided){
@@ -124,8 +144,7 @@ function createTeams(){
   }
 
   /* ----------------------------------------
-     ★ 同じ base のものを「統合するが」
-       → ここで再分割しないようにする
+     ★ base名で統合しても再分割しない
   ---------------------------------------- */
   for(const t of teams){
     const merged = {};
@@ -135,8 +154,6 @@ function createTeams(){
       }
       merged[m.base].size += m.size;
     }
-
-    // 統合された後も “分割済み” は保持
     t.members = Object.values(merged);
     t.total = t.members.reduce((s,m)=>s+m.size,0);
   }
