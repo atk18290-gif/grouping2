@@ -2,19 +2,19 @@ let nextRowId = 2;
 let teamsGlobal = [];
 let dragSrcEl = null;
 
-function escapeHtml(s){
-  if(!s) return '';
-  return String(s).replace(/[&<>"']/g,c=>(
-    {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]
+function escapeHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
   ));
 }
 
-function addGroupInput(prefName='', prefSize=''){
+function addGroupInput(prefName = '', prefSize = '') {
   const area = document.getElementById('groupInputsArea');
   const row = document.createElement('div');
-  row.className='group-row';
-  row.id=`group-row-${nextRowId}`;
-  row.innerHTML=`
+  row.className = 'group-row';
+  row.id = `group-row-${nextRowId}`;
+  row.innerHTML = `
     <input id="name-${nextRowId}" type="text" placeholder="グループ名（空可）" value="${escapeHtml(prefName)}" />
     <input id="size-${nextRowId}" type="number" min="1" placeholder="人数（空は1）" style="width:110px" value="${escapeHtml(prefSize)}" />
     <button class="btn" onclick="removeGroupInput(${nextRowId})">削除</button>
@@ -23,217 +23,222 @@ function addGroupInput(prefName='', prefSize=''){
   nextRowId++;
 }
 
-function removeGroupInput(id){
-  const el=document.getElementById(`group-row-${id}`);
-  if(el) el.remove();
+function removeGroupInput(id) {
+  const el = document.getElementById(`group-row-${id}`);
+  if (el) el.remove();
 }
 
-function clearInputs(){
-  const area=document.getElementById('groupInputsArea');
-  area.innerHTML=`
+function clearInputs() {
+  const area = document.getElementById('groupInputsArea');
+  area.innerHTML = `
     <div class="group-row" id="group-row-1">
       <input id="name-1" type="text" placeholder="グループ名（空可）" />
       <input id="size-1" type="number" min="1" placeholder="人数（空は1）" style="width:110px" />
-      <button class="btn btn-add" onclick="addGroupInput()">＋ 追加行</button>
+      <button class="btn btn-add" onclick="addGroupInput()">＋ 行追加</button>
     </div>
   `;
-  nextRowId=2;
-  document.getElementById('results').innerHTML='';
+  nextRowId = 2;
+  document.getElementById('results').innerHTML = '';
 }
 
 /* ============================================
    チーム分けロジック（1人チーム禁止版）
 ============================================ */
-function createTeams(){
-  const teamCount = Math.max(1, parseInt(document.getElementById('teamCount').value)||1);
-  const colsCount = Math.max(1, parseInt(document.getElementById('columnsCount').value)||3);
+function createTeams() {
+  const teamCount = Math.max(1, parseInt(document.getElementById('teamCount').value) || 1);
+  const colsCount = Math.max(1, parseInt(document.getElementById('columnsCount').value) || 3);
   const rows = document.querySelectorAll('[id^="group-row-"]');
 
   const groups = [];
-  for(const row of rows){
-    const id=row.id.split('-').pop();
-    const nameEl=document.getElementById(`name-${id}`);
-    const sizeEl=document.getElementById(`size-${id}`);
-    if(!nameEl||!sizeEl) continue;
-    const name=(nameEl.value||'').trim()||`グループ${id}`;
-    const size=Math.max(1,parseInt(sizeEl.value)||1);
-    groups.push({name,size});
+  for (const row of rows) {
+    const id = row.id.split('-').pop();
+    const nameEl = document.getElementById(`name-${id}`);
+    const sizeEl = document.getElementById(`size-${id}`);
+    if (!nameEl || !sizeEl) continue;
+    const name = (nameEl.value || '').trim() || `グループ${id}`;
+    const size = Math.max(1, parseInt(sizeEl.value) || 1);
+    groups.push({ name, size });
   }
 
-  if(groups.length===0){ alert('グループを1つ以上追加してください'); return; }
+  if (groups.length === 0) {
+    alert('グループを1つ以上追加してください');
+    return;
+  }
 
-  const totalPeople = groups.reduce((s,g)=>s+g.size,0);
-  const averageB = Math.floor(totalPeople/groups.length);
+  const totalPeople = groups.reduce((s, g) => s + g.size, 0);
+  const averageB = Math.floor(totalPeople / groups.length);
 
-  const divided=[];
-  for(const g of groups){
+  const divided = [];
+  for (const g of groups) {
 
-    /* ------------------------------
-       ★ 3人以下は絶対に分割しない
-    ------------------------------ */
-    if(g.size <= 3){
-      divided.push({name:g.name, base:g.name, size:g.size, isSplit:false});
+    // ★ 3人以下は絶対に分割しない
+    if (g.size <= 3) {
+      divided.push({ name: g.name, base: g.name, size: g.size, isSplit: false });
       continue;
     }
 
-    /* ------------------------------------
-       ★ 分割数 splitCount を決める部分
-    ------------------------------------ */
+    // 分割数 splitCount を決める
     let splitCount = 1;
 
-    if(g.size <= averageB/4){
+    if (g.size <= averageB / 4) {
       splitCount = 1;
-
-    } else if(g.size <= averageB){
+    } else if (g.size <= averageB) {
       splitCount = 2;
-
     } else {
       splitCount = 4;
     }
 
-    /* -----------------------------------------------------
-       ★ ここが今回追加する最重要ポイント！
-          分割すると 1人チームが出る場合 → 分割数を減らす
-    ----------------------------------------------------- */
+    // ★ 分割すると1人チームが出る場合 → 分割数を減らす（必ず2人以上になるよう調整）
     while (Math.floor(g.size / splitCount) < 2) {
       splitCount--;
-      if(splitCount <= 1){
+      if (splitCount <= 1) {
         splitCount = 1;
         break;
       }
     }
 
-// 分割実行
-if(splitCount === 1){
-  divided.push({name:g.name, base:g.name, size:g.size, isSplit:false});
-} else {
-  let baseSize = Math.floor(g.size / splitCount);
-  let remainder = g.size - baseSize * splitCount;
+    // 分割実行
+    if (splitCount === 1) {
+      divided.push({ name: g.name, base: g.name, size: g.size, isSplit: false });
+    } else {
+      let baseSize = Math.floor(g.size / splitCount);
+      let remainder = g.size - baseSize * splitCount;
 
-  for(let i=0; i<splitCount; i++){
-    let part = baseSize + (remainder > 0 ? 1 : 0);
-    if(remainder > 0) remainder--;
+      for (let i = 0; i < splitCount; i++) {
+        let part = baseSize + (remainder > 0 ? 1 : 0);
+        if (remainder > 0) remainder--;
 
-    // ここでも念のため1人チームが出ないように調整
-    if(part < 2){
-      part = 2;
+        // 念のため1人チームが出ないようダメ押し
+        if (part < 2) {
+          part = 2;
+        }
+
+        divided.push({
+          name: g.name + String.fromCharCode(65 + i), // A, B, C...
+          base: g.name,
+          size: part,
+          isSplit: true
+        });
+      }
     }
-
-    divided.push({
-      name: g.name + String.fromCharCode(65+i),
-      base: g.name,
-      size: part,
-      isSplit: true
-    });
   }
-} 
 
-  /* --------------------------
-     チーム構築
-  --------------------------- */
-  let teams=Array.from({length:teamCount}, (_,i)=>({
-    id:i,
-    name:`チーム${i+1}`,
-    members:[],
-    total:0
+  // チーム構築
+  let teams = Array.from({ length: teamCount }, (_, i) => ({
+    id: i,
+    name: `チーム${i + 1}`,
+    members: [],
+    total: 0
   }));
 
-  divided.sort((a,b)=>b.size-b.size);
+  // 大きい順にソートしてから、少ないチームに順番に入れる
+  divided.sort((a, b) => b.size - a.size);
 
-  for(const piece of divided){
-    teams.sort((a,b)=>a.total-b.total);
+  for (const piece of divided) {
+    teams.sort((a, b) => a.total - b.total);
     teams[0].members.push(piece);
     teams[0].total += piece.size;
   }
 
-  /* ----------------------------------------
-     ★ base名で統合しても再分割しない
-  ---------------------------------------- */
-  for(const t of teams){
+  // base名で統合しても再分割しない
+  for (const t of teams) {
     const merged = {};
-    for(const m of t.members){
-      if(!merged[m.base]){
-        merged[m.base] = {name:m.base, size:0, wasSplit:m.isSplit};
+    for (const m of t.members) {
+      if (!merged[m.base]) {
+        merged[m.base] = { name: m.base, size: 0, wasSplit: m.isSplit };
       }
       merged[m.base].size += m.size;
     }
     t.members = Object.values(merged);
-    t.total = t.members.reduce((s,m)=>s+m.size,0);
+    t.total = t.members.reduce((s, m) => s + m.size, 0);
   }
 
   teamsGlobal = teams;
   renderTeams(colsCount);
 }
 
-
 /* ---------------------------------------------------------
    結果表示・ドラッグ移動・編集
 ---------------------------------------------------------- */
-function renderTeams(colsCount){
-  const container=document.getElementById('results');
-  container.innerHTML='';
-  container.style.gridTemplateColumns=`repeat(${colsCount},1fr)`;
-  teamsGlobal.sort((a,b)=>a.id-b.id);
+function renderTeams(colsCount) {
+  const container = document.getElementById('results');
+  container.innerHTML = '';
+  container.style.display = 'grid';
+  container.style.gridTemplateColumns = `repeat(${colsCount}, 1fr)`;
+  container.style.gap = '12px';
 
-  teamsGlobal.forEach((team,idx)=>{
-    const card=document.createElement('div');
-    card.className='team-card';
-    card.setAttribute('draggable','true');
-    card.dataset.index=idx;
+  teamsGlobal.sort((a, b) => a.id - b.id);
+
+  teamsGlobal.forEach((team, idx) => {
+    const card = document.createElement('div');
+    card.className = 'team-card';
+    card.setAttribute('draggable', 'true');
+    card.dataset.index = idx;
 
     // タイトル
-    const title=document.createElement('div');
-    title.className='team-title';
-    title.textContent=`${team.name}（${team.total}人）`;
-    title.contentEditable='true';
+    const title = document.createElement('div');
+    title.className = 'team-title';
+    title.textContent = `${team.name}（${team.total}人）`;
+    title.contentEditable = 'true';
 
     // メンバー一覧
-    const membersDiv=document.createElement('div');
-    membersDiv.className='members';
+    const membersDiv = document.createElement('div');
+    membersDiv.className = 'members';
 
-    team.members.forEach((m)=>{
-      const div=document.createElement('div');
-      div.contentEditable='true';
-      div.innerText=`${m.name}：${m.size}人`;
+    team.members.forEach((m) => {
+      const div = document.createElement('div');
+      div.contentEditable = 'true';
+      div.innerText = `${m.name}：${m.size}人`;
 
-      div.addEventListener('input',()=>{
-        const parts=div.innerText.split('：');
-        if(parts.length>=2){
-          m.name=parts[0].trim();
-          m.size=parseInt(parts[1])||1;
-          team.total=team.members.reduce((s,m)=>s+m.size,0);
-          title.textContent=`${team.name}（${team.total}人）`;
+      div.addEventListener('input', () => {
+        const parts = div.innerText.split('：');
+        if (parts.length >= 2) {
+          m.name = parts[0].trim();
+          // 「人」を消してから数値にする
+          const numText = parts[1].replace('人', '').trim();
+          m.size = parseInt(numText) || 1;
+          team.total = team.members.reduce((s, m2) => s + m2.size, 0);
+          title.textContent = `${team.name}（${team.total}人）`;
         }
       });
 
       membersDiv.appendChild(div);
     });
 
-    title.addEventListener('input',()=>{
-      team.name = title.innerText.replace(/（\d+人）$/,'').trim();
-      title.textContent=`${team.name}（${team.total}人）`;
+    // タイトル編集時
+    title.addEventListener('input', () => {
+      // （◯人） を除いた部分をチーム名にする
+      const plain = title.innerText.replace(/（\d+人）$/, '').trim();
+      team.name = plain || `チーム${team.id + 1}`;
+      title.textContent = `${team.name}（${team.total}人）`;
     });
 
-    // ドラッグ
-    card.addEventListener('dragstart',e=>{
-      dragSrcEl=card;
+    // ドラッグ開始
+    card.addEventListener('dragstart', e => {
+      dragSrcEl = card;
       card.classList.add('dragging');
-      e.dataTransfer.effectAllowed='move';
+      e.dataTransfer.effectAllowed = 'move';
     });
-    card.addEventListener('dragend',()=>{
+
+    // ドラッグ終了
+    card.addEventListener('dragend', () => {
       card.classList.remove('dragging');
     });
-    card.addEventListener('dragover',e=>{
+
+    // ドラッグオーバー
+    card.addEventListener('dragover', e => {
       e.preventDefault();
-      e.dataTransfer.dropEffect='move';
+      e.dataTransfer.dropEffect = 'move';
     });
-    card.addEventListener('drop',e=>{
+
+    // ドロップ
+    card.addEventListener('drop', e => {
       e.preventDefault();
-      if(dragSrcEl!==card){
-        const parent=card.parentNode;
-        const srcIndex=[...parent.children].indexOf(dragSrcEl);
-        const tgtIndex=[...parent.children].indexOf(card);
-        if(srcIndex<tgtIndex) parent.insertBefore(dragSrcEl, card.nextSibling);
+      if (dragSrcEl !== card) {
+        const parent = card.parentNode;
+        const srcIndex = [...parent.children].indexOf(dragSrcEl);
+        const tgtIndex = [...parent.children].indexOf(card);
+        if (srcIndex < tgtIndex) parent.insertBefore(dragSrcEl, card.nextSibling);
         else parent.insertBefore(dragSrcEl, card);
       }
     });
