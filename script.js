@@ -103,15 +103,6 @@ function createTeams(){
       }
     }
 
-   // 分割数が確定するまで調整：必ず2人以上にする
-while(Math.floor(g.size / splitCount) < 2){
-  splitCount--;
-  if(splitCount <= 1){
-    splitCount = 1;
-    break;
-  }
-}
-
 // 分割実行
 if(splitCount === 1){
   divided.push({name:g.name, base:g.name, size:g.size, isSplit:false});
